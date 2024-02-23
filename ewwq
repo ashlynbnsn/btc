@@ -1,0 +1,91 @@
+mkdir authentication-app
+cd authentication-app
+npm init -y
+npm install express passport passport-local express-session
+const express = require('express');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const session = require('express-session');
+const bodyParser = require('body-parser');
+
+const app = express();
+
+// Используем сессии для отслеживания состояния аутентификации пользователя
+app.use(session({ secret: 'secret-key', resave: false, saveUninitialized: false }));
+
+// Инициализация Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Используем body-parser для обработки данных из формы
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Пример базы данных пользователей (в реальном проекте используйте базу данных)
+const users = [
+  { id: 1, username: 'user1', password: 'password1' },
+  { id: 2, username: 'user2', password: 'password2' },
+];
+
+// Passport Local Strategy
+passport.use(new LocalStrategy(
+  (username, password, done) => {
+    const user = users.find(u => u.username === username && u.password === password);
+
+    if (user) {
+      return done(null, user);
+    } else {
+      return done(null, false, { message: 'Incorrect username or password.' });
+    }
+  }
+));
+
+// Serialize and deserialize user (for session management)
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id, done) => {
+  const user = users.find(u => u.id === id);
+  done(null, user);
+});
+
+// Роуты
+app.get('/', (req, res) => {
+  res.send('<h1>Home</h1><a href="/login">Login</a> | <a href="/dashboard">Dashboard</a> | <a href="/logout">Logout</a>');
+});
+
+app.get('/login', (req, res) => {
+  res.send('<h1>Login</h1><form action="/login" method="post"><input type="text" name="username" placeholder="Username" required><br><input type="password" name="password" placeholder="Password" required><br><button type="submit">Login</button></form>');
+});
+
+app.post('/login',
+  passport.authenticate('local', {
+    successRedirect: '/dashboard',
+    failureRedirect: '/login',
+    failureFlash: true
+  })
+);
+
+app.get('/dashboard', isAuthenticated, (req, res) => {
+  res.send(`<h1>Dashboard</h1><p>Hello, ${req.user.username}!</p><a href="/logout">Logout</a>`);
+});
+
+app.get('/logout', (req, res) => {
+  req.logout();
+  res.redirect('/');
+});
+
+// Middleware для проверки аутентификации
+function isAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  } else {
+    res.redirect('/login');
+  }
+}
+
+// Запуск сервера
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
