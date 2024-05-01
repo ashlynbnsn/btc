@@ -9,8 +9,6 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 
 const app = express();
-
-// Используем сессии для отслеживания состояния аутентификации пользователя
 app.use(session({ secret: 'secret-key', resave: false, saveUninitialized: false }));
 
 // Инициализация Passport
